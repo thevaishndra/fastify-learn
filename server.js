@@ -2,7 +2,7 @@ require("dotenv").config();
 const path = require("path")
 const fastify = require("fastify")({logger : true});
 const fastifyEnv = require("@fastify/env");
-import cors from "@fastify/cors";
+// import cors from "@fastify/cors";
 
 //define cors
 // await fastify.register(cors, {
@@ -25,35 +25,71 @@ fastify.register(require("@fastify/env"), {
     }
 });
 
+//register custom plugins
+fastify.register(require("./plugins/mongoose"));
+
 //declare a route
 fastify.get("/", function(request, reply){
     reply.send({hello : "world"});
 });
 
-const schema = {
-  type: "object",
-  required: ["PORT"],
-  properties: {
-    PORT: {
-      type: "string",
-      default: 3000,
-    },
-  },
-};
+// const schema = {
+//   type: "object",
+//   required: ["PORT"],
+//   properties: {
+//     PORT: {
+//       type: "string",
+//       default: 3000,
+//     },
+//   },
+// };
 
-const options = {
-  confKey: "config", // optional, default: 'config'
-  schema: schema,
-  data: data, // optional, default: process.env
-};
+// const options = {
+//   confKey: "config", // optional, default: 'config'
+//   schema: schema,
+//   data: process.env, // optional, default: process.env
+// };
 
-fastify.register(fastifyEnv, options).ready((err) => {
-  if (err) console.error(err);
+// fastify.register(fastifyEnv, options).ready((err) => {
+//   if (err) console.error(err);
 
-  console.log(fastify.config); // or fastify[options.confKey]
-  console.log(fastify.getEnvs());
-  // output: { PORT: 3000 }
-});
+//   console.log(fastify.config); // or fastify[options.confKey]
+//   console.log(fastify.getEnvs());
+//   // output: { PORT: 3000 }
+// });
+
+//test database connection
+fastify.get("/test-db", async(request, reply) => {
+  try {
+    const mongoose = fastify.mongoose
+    const connectionState = mongoose.connection.readyState
+
+    let status = ""
+    switch (connectionState) {
+      case 0:
+        status = "disconnected";
+        break;
+      case 1:
+        status = "connected";
+        break;
+      case 2:
+        status = "connecting";
+        break;
+      case 3:
+        status = "disconnecting";
+        break;
+
+      default:
+        status = "unknown"
+        break;
+    }
+    reply.send({database: status});
+  } catch (err) {
+    fastify.log.error(err);
+    reply.status(500).send({error : "Failed to test database"})
+    process.exit(1);
+  }
+})
 
 const start = async () => {
     try {
